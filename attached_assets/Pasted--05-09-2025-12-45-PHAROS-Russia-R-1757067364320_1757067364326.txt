@@ -1,0 +1,369 @@
+ㅤАртём, [05.09.2025 12:45]
+PHAROS Russia — полный набор для запуска минта (контракт + фронтенд на Replit)
+
+Ниже — готовый минимальный стек, чтобы выкатить коллекцию Pharos Russia (10,000 штук по 0.1 PHAROS) и дать пользователям возможность минтить через простую веб‑страницу.
+
+> Состав:
+
+1. Контракт ERC‑721 с ограничением по тиражу и ценой, функциями setBaseURI, withdraw.
+
+
+2. Hardhat-конфигурация и скрипт деплоя.
+
+
+3. Простая страница index.html (без сборщиков) на Replit с кнопкой Mint.
+
+
+4. Шаблоны metadata и структура папок, чтобы можно было хостить JSON и изображения прямо на Replit или в IPFS.
+
+ㅤАртём, [05.09.2025 12:47]
+1) Контракт (Solidity)
+
+Файл: contracts/PharosRussia.sol
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+/**
+ * @title PharosRussia
+ * @notice Простая коллекция ERC-721 для PHAROS с фиксированной ценой и лимитом.
+ *         Токены используют baseURI + tokenId + ".json".
+ */
+contract PharosRussia is ERC721, Ownable {
+    using Strings for uint256;
+
+    uint256 public constant MAX_SUPPLY = 10000;           // общее количество
+    uint256 public constant MINT_PRICE = 0.1 ether;       // 0.1 PHAROS (18 decimals)
+
+    uint256 public totalMinted;                           // счётчик минта
+    string private baseURI;
+
+    event Minted(address indexed minter, uint256 indexed tokenId);
+
+    constructor() ERC721("Pharos Russia", "PHRU") {}
+
+    // === mint ===
+    function mint(uint256 quantity) external payable {
+        require(quantity > 0 && quantity <= 10, "Mint 1-10 per tx");
+        require(totalMinted + quantity <= MAX_SUPPLY, "Sold out");
+        require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
+
+        for (uint256 i = 0; i < quantity; i++) {
+            uint256 tokenId = ++totalMinted; // начинается с 1
+            _safeMint(msg.sender, tokenId);
+            emit Minted(msg.sender, tokenId);
+        }
+    }
+
+    // === админ ===
+    function setBaseURI(string calldata newBaseURI) external onlyOwner {
+        baseURI = newBaseURI;
+    }
+
+    function withdraw(address payable to) external onlyOwner {
+        (bool ok, ) = to.call{value: address(this).balance}("");
+        require(ok, "Withdraw failed");
+    }
+
+    // === view ===
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_ownerOf(tokenId) != address(0), "Nonexistent token");
+        string memory base = _baseURI();
+        return bytes(base).length > 0 ? string(abi.encodePacked(base, tokenId.toString(), ".json")) : "";
+    }
+}
+
+> По умолчанию контракт:
+
+продаёт 0.1 PHRS за токен,
+
+позволяет минтить до 10 за транзакцию,
+
+общее количество — 10,000.
+
+ㅤАртём, [05.09.2025 12:49]
+2) Hardhat-проект
+
+package.json
+
+{
+  "name": "pharos-russia-nft",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:pharos": "hardhat run scripts/deploy.js --network pharos"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.4.5"
+  }
+}
+
+.env (создать в корне)
+
+PRIVATE_KEY=0xВАШ_ПРИВАТНЫЙ_КЛЮЧ
+PHAROS_RPC=https://rpc.testnet.pharos.network
+
+hardhat.config.js
+
+require("dotenv").config();
+require("@nomicfoundation/hardhat-toolbox");
+
+module.exports = {
+  solidity: {
+    version: "0.8.20",
+    settings: { optimizer: { enabled: true, runs: 200 } }
+  },
+  networks: {
+    pharos: {
+      url: process.env.PHAROS_RPC, // при необходимости замените на актуальный RPC
+      chainId: 688688,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    }
+  }
+};
+
+scripts/deploy.js
+
+async function main() {
+  const [deployer] = await ethers.getSigners();
+  console.log("Deployer:", deployer.address);
+
+  const Nft = await ethers.getContractFactory("PharosRussia");
+  const nft = await Nft.deploy();
+  await nft.waitForDeployment();
+
+  const addr = await nft.getAddress();
+  console.log("PharosRussia deployed at:", addr);
+
+  // Пример: сразу прописать baseURI (ваш Replit или IPFS)
+  // await (await nft.setBaseURI("https://YOUR-REPLIT-APP.replit.app/metadata/" )).wait();
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+
+ㅤАртём, [05.09.2025 12:51]
+3) Фронтенд (Replit, без сборки)
+
+Файл: index.html
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pharos Russia — Mint</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+    button { padding: 12px 16px; border-radius: 12px; border: 0; cursor: pointer; font-weight: 600; }
+    .primary { background: #1f6feb; color: #fff; }
+    .muted { background: #eef2ff; color: #1e40af; }
+    input[type=number]{ width: 80px; padding: 8px; border-radius: 10px; border: 1px solid #cbd5e1; }
+    .row { display: flex; gap: 12px; align-items: center; }
+    .stat { color: #475569; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.min.js"></script>
+</head>
+<body>
+  <h1>Pharos Russia — официальный минт</h1>
+  <p class="stat">Цена: <b>0.1 PHAROS</b> за NFT • Тираж: <b>10,000</b></p>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:12px;">
+      <button id="connect" class="muted">Подключить кошелёк</button>
+      <span id="account" class="stat"></span>
+    </div>
+
+    <div class="row" style="margin-bottom:12px;">
+      <label>Количество:</label>
+      <input id="qty" type="number" min="1" max="10" value="1" />
+      <button id="mint" class="primary">Mint</button>
+    </div>
+
+    <div class="stat">
+      Осталось: <span id="left">—</span> / 10,000 • Секущий сеть: <span id="net">—</span>
+    </div>
+  </div>
+
+  <script>
+    // ======= НАСТРОЙКИ =======
+    const CONTRACT_ADDRESS = "PASTE_CONTRACT_ADDRESS_HERE"; // вставьте после деплоя
+    const CHAIN_ID_DEC = 688688;                 // PHAROS
+    const CHAIN_ID_HEX = "0xA8230";              // 688688 в hex
+    const RPC_URL = "https://rpc.testnet.pharos.network"; // при необходимости заменить
+    const CHAIN_NAME = "PHAROS Testnet";
+    const CURRENCY = { name: "PHAROS", symbol: "PHRS", decimals: 18 };
+
+    // ABI (минимально необходимое)
+    const ABI = [
+      "function MINT_PRICE() view returns (uint256)",
+      "function MAX_SUPPLY() view returns (uint256)",
+      "function totalMinted() view returns (uint256)",
+      "function mint(uint256 quantity) payable",
+      "function setBaseURI(string newBaseURI)",
+    ];
+
+    let provider, signer, contract;
+
+    const $ = (id) => document.getElementById(id);
+
+    async function ensurePharosNetwork() {
+      const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+      if (currentChainId !== CHAIN_ID_HEX) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: CHAIN_ID_HEX }]
+          });
+        } catch (switchErr) {
+          // Если сети нет в кошельке — предложим добавить
+          if (switchErr.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: CHAIN_ID_HEX,
+                chainName: CHAIN_NAME,
+                nativeCurrency: CURRENCY,
+                rpcUrls: [RPC_URL],
+                blockExplorerUrls: []
+              }]
+            });
+          } else {
+            throw switchErr;
+          }
+        }
+      }
+    }
+
+    async function connect() {
+      if (!window.ethereum) { alert('Установите Metamask / OKX Wallet'); return; }
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      await ensurePharosNetwork();
+
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+      $("account").textContent = addr.slice(0,6) + '…' + addr.slice(-4);
+
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      await refreshStats();
+
+      const net = await provider.getNetwork();
+      $("net").textContent = String(net.chainId);
+    }
+
+ㅤАртём, [05.09.2025 12:51]
+async function refreshStats() {
+      try {
+        const max = await contract.MAX_SUPPLY();
+        const minted = await contract.totalMinted();
+        $("left").textContent = (max - minted).toString();
+      } catch (e) {
+        console.warn(e);
+        $("left").textContent = '—';
+      }
+    }
+
+    async function mint() {
+      try {
+        const qty = Math.max(1, Math.min(10, parseInt($("qty").value || '1', 10)));
+        const price = await contract.MINT_PRICE();
+        const totalValue = price * BigInt(qty);
+        const tx = await contract.mint(qty, { value: totalValue });
+        await tx.wait();
+        alert('Минт успешно выполнен!');
+        await refreshStats();
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка: ' + (e?.shortMessage  e?.message  e));
+      }
+    }
+
+    $("connect").onclick = connect;
+    $("mint").onclick = mint;
+  </script>
+</body>
+</html>
+
+> Разместите этот index.html на Replit (статический проект). После деплоя контракта вставьте его адрес в CONTRACT_ADDRESS.
+
+ㅤАртём, [05.09.2025 12:51]
+4) Структура метаданных и изображений
+
+Вариант А — IPFS (рекомендовано)
+
+Загрузите изображение NFT в IPFS (Pinata/Web3.storage).
+
+Для каждого токена создайте JSON 1.json, 2.json, …, 10000.json со ссылками ipfs://... на картинку.
+
+Вызовите в контракте setBaseURI("ipfs://bafy.../") (обратите внимание на конечный /).
+
+
+Пример metadata/1.json
+
+{
+  "name": "Pharos Russia #1",
+  "description": "NFT-бейдж для российских пользователей PHAROS.",
+  "image": "ipfs://QmYourImageHash",
+  "attributes": [
+    { "trait_type": "Edition", "value": "Pharos Russia" }
+  ]
+}
+
+Вариант Б — хостинг на Replit
+
+Создайте папку metadata/ и положите туда 1.json … 10000.json.
+
+Картинку положите в images/ и указывайте абсолютный URL вида https://YOUR-REPLIT-APP.replit.app/images/badge.png.
+
+После деплоя прокиньте setBaseURI("https://YOUR-REPLIT-APP.replit.app/metadata/").
+
+ㅤАртём, [05.09.2025 12:53]
+5) Пошаговый чек‑лист запуска
+
+1. Создайте репо/проект на Replit (тип: Node.js) и добавьте файлы из разделов выше.
+
+
+2. npm i → npx hardhat compile.
+
+
+3. Заполните .env (приватный ключ + RPC).
+
+
+4. npm run deploy:pharos → сохраните адрес контракта.
+
+
+5. Вызовите setBaseURI (через скрипт или любым блок‑эксплорером/консолью) на ipfs://.../ или https://…/metadata/.
+
+
+6. Откройте проект «Static»/index.html на Replit (или создайте второй Replit для фронта) и вставьте CONTRACT_ADDRESS.
+
+
+7. Проверьте: подключение кошелька → сеть PHAROS → Mint 1–10 шт. за раз.
+
+
+8. Поделитесь публичной ссылкой страницы Replit — пользователи смогут минтить.
+
+ㅤАртём, [05.09.2025 12:55]
+Как добавить роялти? Включите EIP-2981 (ERC2981) из OpenZeppelin и задайте setDefaultRoyalty.
+
+Нужна white‑list/пауза? Добавьте Pausable и меркль-ветку на allowlist.
+
+И добавить кнопку для админа вывод средств,как это все нам собрать в кучу?

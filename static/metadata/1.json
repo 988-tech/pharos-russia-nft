@@ -1,0 +1,24 @@
+{
+  "name": "Pharos Russia #1",
+  "description": "Эксклюзивный NFT-бейдж для российских пользователей блокчейна PHAROS. Символ принадлежности к инновационному сообществу децентрализованных технологий.",
+  "image": "https://YOUR-REPLIT-APP.replit.app/static/images/pharosRussia.jpg",
+  "external_url": "https://YOUR-REPLIT-APP.replit.app",
+  "attributes": [
+    {
+      "trait_type": "Edition",
+      "value": "Pharos Russia"
+    },
+    {
+      "trait_type": "Country",
+      "value": "Russia"
+    },
+    {
+      "trait_type": "Blockchain",
+      "value": "PHAROS"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Exclusive"
+    }
+  ]
+}
