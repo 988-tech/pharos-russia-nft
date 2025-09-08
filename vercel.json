@@ -8,7 +8,6 @@
     "api/**/*.py": { "runtime": "python3.11" }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/static/(.*)", "destination": "/static/$1" },
     { "source": "/(.*)", "destination": "/api/index.py" }
   ]
