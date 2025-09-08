@@ -24,3 +24,6 @@ Thumbs.db
 *.zip
 backup/
 логи нфт/
+.gitconfig
+.gecho
+NULgit
