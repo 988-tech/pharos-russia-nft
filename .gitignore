@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node/Hardhat
+node_modules/
+artifacts/
+cache/
+coverage/
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backups and archives
+*.zip
+backup/
+логи нфт/

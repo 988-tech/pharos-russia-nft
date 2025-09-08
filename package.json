@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "hardhat.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No tests\"",
+    "compile": "hardhat compile",
+    "deploy:pharos": "hardhat run scripts/deploy.js --network pharos"
   },
   "keywords": [],
   "author": "",

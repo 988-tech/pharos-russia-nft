@@ -4,7 +4,9 @@ class PharosRussiaMint {
         this.signer = null;
         this.contract = null;
         this.config = null;
+        this.mintPriceWei = null;
         this.connectionType = null; // 'injected' или 'walletconnect'
+        this.wcClient = null;
         
         // Contract ABI (минимально необходимые функции)
         this.ABI = [
@@ -132,6 +134,8 @@ class PharosRussiaMint {
         this.elements.decreaseBtn.addEventListener('click', () => this.changeQuantity(-1));
         this.elements.increaseBtn.addEventListener('click', () => this.changeQuantity(1));
         this.elements.mintQuantity.addEventListener('input', () => this.updateCost());
+        const wcBtn = document.getElementById('walletConnectBtn');
+        if (wcBtn) wcBtn.addEventListener('click', () => this.connectWalletConnect());
         
         // Слушаем изменения аккаунта и сети
         if (window.ethereum) {
@@ -221,6 +225,27 @@ class PharosRussiaMint {
         
         console.log('No wallet detected');
         return null;
+    }
+
+    async connectWalletConnect() {
+        try {
+            const wc = window.WalletConnectSign;
+            if (!wc) {
+                this.showError('WalletConnect библиотека не загружена');
+                return;
+            }
+            // Инициализация клиента WalletConnect v2
+            this.wcClient = await wc.init({ projectId: 'demo' });
+            // Простейший deep-link совет
+            if (this.isMobile()) {
+                this.showStatus('Откройте сайт в DApp браузере кошелька для надёжного подключения', 'info');
+                return;
+            }
+            this.showStatus('Откройте кошелёк и отсканируйте QR-код', 'info');
+        } catch (e) {
+            console.error('WalletConnect error:', e);
+            this.showError('Не удалось подключиться через WalletConnect');
+        }
     }
 
     async checkWalletConnection() {
@@ -337,6 +362,16 @@ class PharosRussiaMint {
             if (this.config.isContractDeployed) {
                 this.contract = new ethers.Contract(this.config.contractAddress, this.ABI, this.signer);
                 console.log('Contract initialized with address:', this.config.contractAddress);
+                try {
+                    // Читаем цену минта из контракта (wei)
+                    const price = await this.contract.MINT_PRICE();
+                    this.mintPriceWei = price; // BigNumber/BigInt совместимо
+                    this.updateCost();
+                } catch (e) {
+                    console.log('Failed to read MINT_PRICE, fallback to 0:', e);
+                    this.mintPriceWei = 0n;
+                    this.updateCost();
+                }
             } else {
                 console.log('Contract not deployed yet');
                 this.showContractNotDeployedWarning();
@@ -568,8 +603,19 @@ class PharosRussiaMint {
     
     updateCost() {
         const quantity = parseInt(this.elements.mintQuantity.value) || 1;
-        const totalCost = (0.1 * quantity).toFixed(1);
-        this.elements.totalCost.textContent = `${totalCost} PHAROS`;
+        // Если знаем цену из контракта, используем её, иначе считаем как 0 PHAROS
+        if (this.mintPriceWei !== null) {
+            try {
+                const priceWei = typeof this.mintPriceWei === 'bigint' ? this.mintPriceWei : BigInt(this.mintPriceWei.toString());
+                const totalWei = priceWei * BigInt(quantity);
+                const totalEth = ethers.utils.formatEther(totalWei.toString());
+                this.elements.totalCost.textContent = `${totalEth} PHAROS`;
+                return;
+            } catch (e) {
+                console.log('Failed to compute price from contract, fallback to 0:', e);
+            }
+        }
+        this.elements.totalCost.textContent = `0 PHAROS`;
     }
     
     async updateStats() {
@@ -602,9 +648,9 @@ class PharosRussiaMint {
             // Показываем модал загрузки
             this.showStatus('Подготовка транзакции...', 'loading');
             
-            // Получаем цену минта
+            // Получаем цену минта (может быть 0)
             const mintPrice = await this.contract.MINT_PRICE();
-            const totalValue = mintPrice * BigInt(quantity);
+            const totalValue = (typeof mintPrice === 'bigint' ? mintPrice : BigInt(mintPrice.toString())) * BigInt(quantity);
             
             this.showStatus('Подтвердите транзакцию в кошельке...', 'loading');
             

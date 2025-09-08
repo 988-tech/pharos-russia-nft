@@ -14,7 +14,7 @@ contract PharosRussia is ERC721, Ownable {
     using Strings for uint256;
 
     uint256 public constant MAX_SUPPLY = 10000;           // общее количество
-    uint256 public constant MINT_PRICE = 0.1 ether;       // 0.1 PHAROS (18 decimals)
+    uint256 public constant MINT_PRICE = 0;               // free mint, только газ
 
     uint256 public totalMinted;                           // счётчик минта
     string private baseURI;
@@ -27,7 +27,11 @@ contract PharosRussia is ERC721, Ownable {
     function mint(uint256 quantity) external payable {
         require(quantity > 0 && quantity <= 10, "Mint 1-10 per tx");
         require(totalMinted + quantity <= MAX_SUPPLY, "Sold out");
-        require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
+        if (MINT_PRICE > 0) {
+            require(msg.value >= MINT_PRICE * quantity, "Insufficient payment");
+        } else {
+            require(msg.value == 0, "Mint is free, do not send value");
+        }
 
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = ++totalMinted; // начинается с 1

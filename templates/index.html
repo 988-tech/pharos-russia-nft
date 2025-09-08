@@ -58,8 +58,8 @@
                             <div class="col-md-4">
                                 <div class="stat-card">
                                     <i class="fas fa-coins mb-2"></i>
-                                    <div class="stat-value">0.1 PHAROS</div>
-                                    <div class="stat-label">Цена за NFT</div>
+                                    <div class="stat-value">0 PHAROS</div>
+                                    <div class="stat-label">Цена за NFT (только газ)</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -103,10 +103,14 @@
                                         <i class="fas fa-wallet me-2"></i>
                                         Выберите способ подключения кошелька
                                     </label>
-                                    <div class="d-grid" id="walletOptions">
+                                    <div class="d-grid gap-2" id="walletOptions">
                                         <button id="connectWalletBtn" class="btn btn-primary btn-lg">
                                             <i class="fas fa-wallet me-2"></i>
                                             Connect Wallet
+                                        </button>
+                                        <button id="walletConnectBtn" class="btn btn-outline-primary btn-lg">
+                                            <i class="fas fa-qrcode me-2"></i>
+                                            WalletConnect
                                         </button>
                                     </div>
                                 </div>
@@ -147,7 +151,7 @@
                                 <div class="cost-display mb-4">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span>Общая стоимость:</span>
-                                        <span class="fw-bold fs-5" id="totalCost">0.1 PHAROS</span>
+                                        <span class="fw-bold fs-5" id="totalCost">0 PHAROS</span>
                                     </div>
                                 </div>
 
@@ -219,6 +223,8 @@
     </div>
 
 
+    <!-- WalletConnect Web3Modal (v2) -->
+    <script src="https://unpkg.com/@walletconnect/sign-client@2.14.0/dist/umd/index.min.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
